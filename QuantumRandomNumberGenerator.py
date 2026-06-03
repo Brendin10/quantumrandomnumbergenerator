@@ -31,7 +31,7 @@ st.markdown(
     }
     </style>
     """,
-    unsafe_allowed_html=True,
+    unsafe_allow_html=True,
 )
 
 st.title("⚛️ Quantum Random Number Generator")
@@ -84,6 +84,6 @@ if st.session_state.quantum_number:
     st.markdown("### Your 100-Digit Quantum Number:")
     st.markdown(
         f'<div class="quantum-box">{st.session_state.quantum_number}</div>',
-        unsafe_allowed_html=True,
+        unsafe_allow_html=True,
     )
     st.text_copy_button("📋 Copy Number", st.session_state.quantum_number)
