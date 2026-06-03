@@ -1,4 +1,2 @@
-math
-streamlit
-qiskit
-numpy
+streamlit>=1.30.0
+qiskit>=1.0.0
