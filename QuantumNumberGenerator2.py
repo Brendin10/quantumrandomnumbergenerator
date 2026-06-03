@@ -1,6 +1,6 @@
 import streamlit as st
 from qiskit import QuantumCircuit
-from qiskit_aer.primitives import Sampler
+from qiskit_aer import AerSimulator
 import numpy as np
 
 # ====================== PAGE CONFIG ======================
@@ -20,11 +20,11 @@ st.markdown(
         padding: 25px;
         border-radius: 12px;
         border: 2px solid #00E5FF;
-        font-size: 22px !important;
+        font-size: 21px !important;
         word-wrap: break-word;
         text-align: center;
-        box-shadow: 0 0 25px rgba(0, 229, 255, 0.25);
-        min-height: 80px;
+        box-shadow: 0 0 25px rgba(0, 229, 255, 0.3);
+        min-height: 85px;
     }
     div.stButton > button {
         width: 100%;
@@ -33,7 +33,8 @@ st.markdown(
         font-size: 18px;
         font-weight: bold;
         border-radius: 8px;
-        padding: 12px;
+        padding: 14px;
+        margin-top: 10px;
     }
     </style>
     """,
@@ -43,81 +44,78 @@ st.markdown(
 st.title("⚛️ Quantum Random Number Generator")
 st.write("Generates a **truly random** 100-digit number using quantum superposition.")
 
-# ====================== QUANTUM FUNCTION ======================
+# ====================== FIXED QUANTUM FUNCTION ======================
 def generate_quantum_bits(total_bits: int = 340) -> str:
-    """
-    Efficiently generates random bits using quantum measurement.
-    Uses 25 qubits per circuit for better performance.
-    """
+    """Stable quantum bit generation using AerSimulator"""
     num_qubits = 25
+    backend = AerSimulator()
     collected_bits = ""
     
-    sampler = Sampler()
-    
     while len(collected_bits) < total_bits:
-        # Create circuit
         qc = QuantumCircuit(num_qubits)
-        qc.h(range(num_qubits))      # Superposition
-        qc.measure_all()             # Measure all qubits
+        qc.h(range(num_qubits))   # Put all qubits in superposition
+        qc.measure_all()
         
         # Run circuit
-        job = sampler.run([qc], shots=1)
+        job = backend.run(qc, shots=1, memory=True)
         result = job.result()
         
-        # Correct way to extract bitstring in Aer Sampler (Qiskit 1.x)
-        bitstring = result[0].data.meas.get_bitstrings()[0]
+        # Get the bitstring from memory
+        bitstring = result.get_memory()[0]
         collected_bits += bitstring
-    
+        
     return collected_bits[:total_bits]
 
 
-# ====================== STREAMLIT APP ======================
+# ====================== APP LOGIC ======================
 if "quantum_number" not in st.session_state:
     st.session_state.quantum_number = None
     st.session_state.raw_bits = None
 
-if st.button("Generate 100-Digit Quantum Number"):
-    with st.spinner("Entangling qubits and harvesting quantum randomness..."):
+if st.button("🚀 Generate 100-Digit Quantum Number"):
+    with st.spinner("Running quantum circuit on simulator..."):
         try:
-            # Generate ~340 random bits (log2(10) ≈ 3.32 → 100 digits need ~332 bits)
             raw_bits = generate_quantum_bits(340)
             large_int = int(raw_bits, 2)
             number_str = str(large_int)
             
-            # Ensure we have exactly 100 digits (pad with more bits if needed)
+            # Ensure we have at least 100 digits
             while len(number_str) < 100:
-                extra_bits = generate_quantum_bits(20)
+                extra_bits = generate_quantum_bits(30)
                 extra_int = int(extra_bits, 2)
                 number_str += str(extra_int)
-            number_str = number_str[:100]
             
-            st.session_state.quantum_number = number_str
+            st.session_state.quantum_number = number_str[:100]
             st.session_state.raw_bits = raw_bits
             
+            st.success("✅ Quantum number generated successfully!")
+            
         except Exception as e:
-            st.error(f"Quantum circuit failed: {str(e)}")
-            st.session_state.quantum_number = None
+            st.error(f"Error: {str(e)}")
+            st.info("Tip: Make sure you have `qiskit-aer` installed: `pip install qiskit-aer`")
 
-# ====================== DISPLAY RESULT ======================
+# ====================== DISPLAY ======================
 if st.session_state.quantum_number:
-    st.success("✅ Quantum randomness successfully harvested!")
-    
     st.markdown("### Your 100-Digit Quantum Random Number:")
     st.markdown(
         f'<div class="quantum-box">{st.session_state.quantum_number}</div>',
         unsafe_allow_html=True,
     )
     
-    # Copy button (replaces non-existent st.text_copy_button)
-    if st.button("📋 Copy Number to Clipboard"):
-        st.code(st.session_state.quantum_number, language=None)
-        st.success("Number copied to clipboard! (Use Ctrl+C)")
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("📋 Copy Number"):
+            st.code(st.session_state.quantum_number, language=None)
+            st.success("✅ Copied to clipboard! (Ctrl+C)")
     
-    # Optional: Show technical details
-    with st.expander("Show Technical Details"):
-        st.write("**Raw Quantum Bits (first 64):**")
-        st.code(st.session_state.raw_bits[:64] + "...")
-        st.write(f"**Total bits used:** {len(st.session_state.raw_bits)}")
-        st.write("**Method:** 25-qubit Hadamard + measurement repeated as needed")
-        
-st.caption("Powered by Qiskit Aer Sampler • Each bit comes from quantum superposition")
+    with col2:
+        if st.button("🔄 Generate New Number"):
+            st.session_state.quantum_number = None
+            st.rerun()
+
+    with st.expander("🔬 Technical Details"):
+        st.write(f"**Bits generated:** {len(st.session_state.raw_bits)}")
+        st.write(f"**First 50 quantum bits:** `{st.session_state.raw_bits[:50]}...`")
+        st.caption("Method: 25-qubit Hadamard gates + measurement using AerSimulator")
+
+st.caption("Built with Qiskit • AerSimulator • Streamlit")
